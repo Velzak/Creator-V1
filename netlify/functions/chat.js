@@ -75,30 +75,126 @@ const detectIntent = (query) => {
   return 'general';
 };
 
+const pickResponse = (options) => options[Math.floor(Math.random() * options.length)];
+
+const hasKeyword = (query, keywords) => keywords.some((keyword) => query.includes(keyword));
+
 const makeLocalResponse = (messages) => {
   const lastUserMessage = [...messages].reverse().find((message) => message.role === 'user');
+  const lastAssistantMessage = [...messages].reverse().find((message) => message.role === 'assistant');
   const userText = lastUserMessage ? lastUserMessage.content : '';
   const normalizedQuery = normalizeText(userText);
   const intent = detectIntent(normalizedQuery);
   const knowledge = getRelevantKnowledge(normalizedQuery, 3);
-
   const knowledgeText = knowledge.map((doc) => `• ${doc.title}: ${doc.text}`).join('\n');
 
-  const explanations = {
-    deploy: `Your custom AI app is already structured for Netlify deployment with a React frontend and a serverless function. To launch it, connect the repo to Netlify and confirm that netlify.toml points to dist for publish and netlify/functions for functions. The built-in Creator-V1 model works without any external key.`,
-    model: `Creator-V1 is your own AI model. It runs locally inside the Netlify function, analyzes your question, and uses the app's knowledge base to answer. You can extend it by adding new documents or rules inside netlify/functions/chat.js.`,
-    web: `This is a web-first AI assistant built with React, Vite, and Netlify Functions. Your app includes a chat UI, a message composer, and a model selector for the built-in Creator-V1 engine and optional OpenAI fallback.`,
-    debug: `For issues, review the rendered error or check the function logs in Netlify. The default model is local, so most problems stem from the frontend request, JSON parsing, or function configuration rather than an external AI provider.`,
-    general: `Creator-V1 is designed to answer developer questions about deployment, web apps, and custom AI models. It fuses intent detection and retrieval over the local knowledge base to create helpful responses.`,
-  };
+  const greetings = [
+    'Hey there! I’m Creator-V1. What would you like to talk about today?',
+    'Hello! I’m here and ready to chat. Ask me anything about your app, deployment, or AI model.',
+    'Hi! I’m Creator-V1. Let’s work through your question together.',
+  ];
 
-  const base = explanations[intent] || explanations.general;
+  const farewells = [
+    'Thanks for the chat! If you want, I can help again anytime.',
+    'Goodbye for now. I’m here when you want to continue.',
+    'Nice talking with you. Let me know when you want to keep building.',
+  ];
 
-  if (/\bcreate\b|\bbuild\b|\bown\b|\bcustom\b/.test(normalizedQuery) && intent === 'model') {
-    return `${base}\n\nWhat makes this a locally owned AI model:\n- Built directly into the Netlify function.\n- No external inference service required for the default Creator-V1 mode.\n- Easy to customize with additional knowledge, patterns, or response rules.\n\nRelevant details:\n${knowledgeText}`;
+  const statusReplies = [
+    'I’m running well and ready to keep the conversation going. What else can I help you with?',
+    'I’m here and working as your AI assistant. Let’s continue whenever you’re ready.',
+    'All systems green. Tell me what you want to build or debug next.',
+  ];
+
+  const nameReplies = [
+    'I’m Creator-V1, your custom AI assistant built into this app. I can help with code, deployment, and AI integration.',
+    'I’m Creator-V1. I live in the Netlify function and I’m designed to chat, explain, and help you build your own model.',
+  ];
+
+  const repeatReplies = [
+    'I’m sorry if I sounded repetitive—I’m switching to a more conversational mode now. What do you want to discuss next?',
+    'I hear you. Let’s keep this more natural. Tell me more about what you need.',
+    'Thanks for the feedback. I’ll answer more directly and keep the chat moving.',
+  ];
+
+  const helpReplies = [
+    'I can help you with deployment, React, Vite, or building your own AI model. What do you want to focus on?',
+    'Feel free to ask anything specific, like how to deploy to Netlify, how the chat works, or how to improve this AI.',
+    'I’m ready to help you step-by-step. What should we cover next?',
+  ];
+
+  if (!userText) {
+    return `${pickResponse(greetings)}
+
+${pickResponse(helpReplies)}`;
   }
 
-  return `${base}\n\nRelevant details:\n${knowledgeText}\n\nIf you want, I can also explain how to add new AI capabilities or how to wire the OpenAI fallback for even more advanced responses.`;
+  if (hasKeyword(normalizedQuery, ['hello', 'hi', 'hey', 'greetings'])) {
+    return `${pickResponse(greetings)}
+
+${pickResponse(helpReplies)}`;
+  }
+
+  if (hasKeyword(normalizedQuery, ['bye', 'goodbye', 'see you', 'later'])) {
+    return pickResponse(farewells);
+  }
+
+  if (hasKeyword(normalizedQuery, ['thanks', 'thank you', 'thx'])) {
+    return `${pickResponse(['You’re welcome!', 'Happy to help!', 'Anytime!'])} ${pickResponse(farewells)}`;
+  }
+
+  if (hasKeyword(normalizedQuery, ['how are you', 'how you doing', 'how is it going'])) {
+    return pickResponse(statusReplies);
+  }
+
+  if (hasKeyword(normalizedQuery, ['your name', 'who are you', 'what are you'])) {
+    return pickResponse(nameReplies);
+  }
+
+  if (hasKeyword(normalizedQuery, ['repeat', 'again', 'same answer', 'same message', 'repetitive'])) {
+    return pickResponse(repeatReplies);
+  }
+
+  const intentResponses = {
+    deploy: [
+      'Your app is already structured for Netlify deployment. I can walk you through the exact setup, environment variables, and publish settings.',
+      'This project is ready for deployment. I can help you connect it to Netlify and confirm the build settings step by step.',
+    ],
+    model: [
+      'Creator-V1 is meant to be a conversational AI model inside the Netlify function. I can make it behave more like a chat assistant by adjusting the response logic.',
+      'Yes — this is your custom AI model. It answers from inside the function and can be updated to feel more natural and context-aware.',
+    ],
+    web: [
+      'This is a web app built with React and Vite, and it uses a serverless function to power the AI responses from the local model.',
+      'Your frontend is a chat interface, and the backend is a Netlify function that generates the AI text replies. That’s the full stack here.',
+    ],
+    debug: [
+      'If something is broken, I can help diagnose it using the logs, the function response, and the Netlify deploy output.',
+      'Let’s pinpoint the issue. Tell me what didn’t work and I’ll explain the fix clearly.',
+    ],
+    general: [
+      'I’m here to have a real conversation. Tell me more about what you want to do and I’ll respond naturally.',
+      'I can answer questions, follow up with clarifying prompts, and help you iterate on your app or AI model.',
+    ],
+  };
+
+  let base = pickResponse(intentResponses[intent] || intentResponses.general);
+
+  if (knowledgeText) {
+    base += `\n\nHere are some helpful details:\n${knowledgeText}`;
+  }
+
+  const followUps = [
+    'What else would you like to know?',
+    'Do you want me to explain any part in more detail?',
+    'Shall I help you make this even more conversational?',
+  ];
+
+  if (lastAssistantMessage && lastAssistantMessage.includes(base)) {
+    base = `${pickResponse(repeatReplies)}\n\n${base}`;
+  }
+
+  return `${base}\n\n${pickResponse(followUps)}`;
 };
 
 const callOpenAI = async (messages, model) => {
