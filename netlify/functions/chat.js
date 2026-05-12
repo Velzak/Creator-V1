@@ -155,42 +155,34 @@ ${pickResponse(helpReplies)}`;
     return pickResponse(repeatReplies);
   }
 
-  const intentResponses = {
-    deploy: [
-      'Your app is already structured for Netlify deployment. I can walk you through the exact setup, environment variables, and publish settings.',
-      'This project is ready for deployment. I can help you connect it to Netlify and confirm the build settings step by step.',
-    ],
-    model: [
-      'Creator-V1 is meant to be a conversational AI model inside the Netlify function. I can make it behave more like a chat assistant by adjusting the response logic.',
-      'Yes — this is your custom AI model. It answers from inside the function and can be updated to feel more natural and context-aware.',
-    ],
-    web: [
-      'This is a web app built with React and Vite, and it uses a serverless function to power the AI responses from the local model.',
-      'Your frontend is a chat interface, and the backend is a Netlify function that generates the AI text replies. That’s the full stack here.',
-    ],
-    debug: [
-      'If something is broken, I can help diagnose it using the logs, the function response, and the Netlify deploy output.',
-      'Let’s pinpoint the issue. Tell me what didn’t work and I’ll explain the fix clearly.',
-    ],
-    general: [
-      'I’m here to have a real conversation. Tell me more about what you want to do and I’ll respond naturally.',
-      'I can answer questions, follow up with clarifying prompts, and help you iterate on your app or AI model.',
-    ],
+  const lastAssistantText = lastAssistantMessage ? lastAssistantMessage.content : '';
+  const summary = userText ? `You asked: "${userText}".` : '';
+
+  const intentReplies = {
+    deploy: `I can help you deploy this app to Netlify. ${summary} I’ll explain how the build, publish folder, and functions tie together so it works smoothly.`,
+    model: `Creator-V1 is your custom local AI model inside this app. ${summary} I can help you make it feel more conversational, add more knowledge, or switch to an OpenAI fallback if you want.`,
+    web: `This is a web chat app built with React and Vite. ${summary} I’m here to help you make it work, design the UI, or connect the frontend to the backend.`,
+    debug: `Let’s troubleshoot that issue together. ${summary} I’ll help you find where it’s breaking and how to fix it.`,
+    general: `I’m here to chat naturally and help you with your project. ${summary} Tell me more about what you want, and I’ll respond with a practical answer.`,
   };
 
-  let base = pickResponse(intentResponses[intent] || intentResponses.general);
+  let base = intentReplies[intent] || intentReplies.general;
 
   if (knowledgeText) {
-    base += `\n\nHere are some helpful details:\n${knowledgeText}`;
+    base += `\n\nI found some relevant details you may want to use:\n${knowledgeText}`;
+  }
+
+  if (!knowledgeText && intent === 'general') {
+    base += '\n\nIf you want, I can also explain how the chat works or give a step-by-step example.';
   }
 
   const followUps = [
-    'What else would you like to know?',
-    'Do you want me to explain any part in more detail?',
-    'Shall I help you make this even more conversational?',
+    'What else would you like me to explain?',
+    'Do you want me to continue with an example or a next step?',
+    'Would you like me to make this more conversational or technical?',
   ];
 
-  if (lastAssistantMessage && lastAssistantMessage.includes(base)) {
+  if (lastAssistantText && lastAssistantText.includes(base)) {
     base = `${pickResponse(repeatReplies)}\n\n${base}`;
   }
 
